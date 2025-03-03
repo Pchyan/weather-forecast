@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天氣查詢</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            text-align: center;
+        }
+
+        .container {
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 300px;
+            background-color: #fff;
+        }
+
+        input {
+            padding: 10px;
+            width: 80%;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #weatherResult {
+            margin-top: 20px;
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 12px;
+        }
+
+        footer a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>查詢天氣</h1>
+        <input type="text" id="city" placeholder="輸入城市名稱">
+        <button id="getWeather">查詢天氣</button>
+        <button id="getCurrentLocation">獲取當前位置</button>
+        <div id="weatherResult"></div>
+        <div id="map"></div>
+        <button id="getFutureForecast">未來5天</button>
+        <button id="getAirPollution">空氣污染資訊</button>
+        <div id="apiUrl" style="margin-top: 20px; color: blue;"></div>
+        <canvas id="forecastChart" style="margin-top: 20px; display: none;"></canvas>
+    </div>
+    <script>
+        // 初始化地圖
+        const map = L.map('map').setView([23.5, 121], 6); // 設定地圖的初始中心和縮放級別
+
+        // 添加 OpenStreetMap 圖層
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let selectedLat = null;
+        let selectedLon = null;
+
+        // 點擊地圖獲取天氣
+        map.on('click', function(e) {
+            selectedLat = e.latlng.lat;
+            selectedLon = e.latlng.lng;
+            getWeatherAtLocation(selectedLat, selectedLon);
+        });
+
+        // 當用戶點擊查詢天氣按鈕時
+        document.getElementById('getWeather').addEventListener('click', function() {
+            const city = document.getElementById('city').value;
+
+            // 檢查是否有輸入城市或選擇位置
+            if (!city && (selectedLat === null || selectedLon === null)) {
+                alert('請輸入城市名稱或點擊地圖選擇位置。');
+                return;
+            }
+
+            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
+            const lat = selectedLat || ''; // 使用選擇的緯度
+            const lon = selectedLon || ''; // 使用選擇的經度
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
+            //const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric&lang=zh_tw`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('網路回應不正常: ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const weatherDescription = data.weather[0].description;
+                    const temperature = data.main.temp;
+                    const result = `
+                        <h2>${data.name}</h2>
+                        <p>溫度: ${temperature} °C</p>
+                        <p>天氣: ${weatherDescription}</p>
+                    `;
+                    document.getElementById('weatherResult').innerHTML = result;
+
+                    // 在查詢位置上放置標記
+                    const lat = data.coord.lat;
+                    const lon = data.coord.lon;
+                    L.marker([lat, lon]).addTo(map)
+                        .bindPopup('查詢位置')
+                        .openPopup();
+                })
+                .catch(error => {
+                    console.error('查詢操作發生問題:', error);
+                    document.getElementById('weatherResult').innerHTML = `<p style="color:red;">${error.message}</p>`;
+                });
+        });
+
+        // 獲取當前位置的按鈕事件
+        document.getElementById('getCurrentLocation').addEventListener('click', function() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    getWeatherAtLocation(lat, lon);
+                    map.setView([lat, lon], 10); // 將地圖中心設置為當前位置
+                }, function() {
+                    alert('無法獲取您的位置。');
+                });
+            } else {
+                alert('您的瀏覽器不支持地理定位。');
+            }
+        });
+
+        // 根據經緯度獲取天氣的函數
+        function getWeatherAtLocation(lat, lon) {
+            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('網路回應不正常: ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const weatherDescription = data.weather[0].description;
+                    const temperature = data.main.temp;
+                    const result = `
+                        <h2>${data.name}</h2>
+                        <p>溫度: ${temperature} °C</p>
+                        <p>天氣: ${weatherDescription}</p>
+                    `;
+                    document.getElementById('weatherResult').innerHTML = result;
+
+                    // 在新位置上放置標記
+                    L.marker([lat, lon]).addTo(map)
+                        .bindPopup('查詢位置')
+                        .openPopup();
+                })
+                .catch(error => {
+                    console.error('查詢操作發生問題:', error);
+                    document.getElementById('weatherResult').innerHTML = `<p style="color:red;">${error.message}</p>`;
+                });
+        }
+
+        // 獲取未來5天的天氣預報的按鈕事件
+        document.getElementById('getFutureForecast').addEventListener('click', function() {
+            const city = document.getElementById('city').value;
+
+            // 檢查是否有輸入城市或選擇位置
+            if (!city && (selectedLat === null || selectedLon === null)) {
+                alert('請輸入城市名稱或點擊地圖選擇位置。');
+                return;
+            }
+
+            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
+            const lat = selectedLat || ''; // 使用選擇的緯度
+            const lon = selectedLon || ''; // 使用選擇的經度
+            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
+            //const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric&lang=zh_tw`;
+                       
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('網路回應不正常: ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    let forecastResult = `<h2>${data.city.name} 未來5天天氣預報</h2>`;
+                    const labels = [];
+                    const temperatures = [];
+                    data.list.forEach(item => {
+                        const date = new Date(item.dt * 1000).toLocaleDateString();
+                        const weatherDescription = item.weather[0].description;
+                        const temperature = item.main.temp;
+                        labels.push(date);
+                        temperatures.push(temperature);
+                        forecastResult += `
+                            <p>${date}: 溫度: ${temperature} °C, 天氣: ${weatherDescription}</p>
+                        `;
+                    });
+                    // document.getElementById('weatherResult').innerHTML = forecastResult;
+
+                    // 繪製圖表
+                    drawChart(labels, temperatures);
+                })
+                .catch(error => {
+                    console.error('查詢操作發生問題:', error);
+                    document.getElementById('weatherResult').innerHTML = `<p style="color:red;">${error.message}</p>`;
+                });
+        });
+
+        // 繪製圖表的函數
+        function drawChart(labels, temperatures) {
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            document.getElementById('forecastChart').style.display = 'block'; // 顯示圖表
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '未來5天溫度 (°C)',
+                        data: temperatures,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 獲取空氣污染資訊的按鈕事件
+        document.getElementById('getAirPollution').addEventListener('click', function() {
+            const city = document.getElementById('city').value;
+
+            // 檢查是否有輸入城市或選擇位置
+            if (!city && (selectedLat === null || selectedLon === null)) {
+                alert('請輸入城市名稱或點擊地圖選擇位置。');
+                return;
+            }
+
+            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
+            const lat = selectedLat || ''; // 使用選擇的緯度
+            const lon = selectedLon || ''; // 使用選擇的經度
+            const url = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('網路回應不正常: ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const airQuality = data.list[0].main.aqi;
+                    const airQualityDescription = airQuality === 1 ? '良好' : airQuality === 2 ? '中等' : airQuality === 3 ? '不良' : airQuality === 4 ? '差' : '非常差';
+                    const pm25 = data.list[0].components.pm2_5;
+                    const pm10 = data.list[0].components.pm10;
+                    const co = data.list[0].components.co;
+                    const no2 = data.list[0].components.no2;
+                    const so2 = data.list[0].components.so2;
+                    const o3 = data.list[0].components.o3;
+
+                    document.getElementById('weatherResult').innerHTML = `
+                        <h2>空氣污染指數: ${airQualityDescription}</h2>
+                        <p>PM2.5: ${pm25} µg/m³</p>
+                        <p>PM10: ${pm10} µg/m³</p>
+                        <p>一氧化碳 (CO): ${co} µg/m³</p>
+                        <p>二氧化氮 (NO2): ${no2} µg/m³</p>
+                        <p>二氧化硫 (SO2): ${so2} µg/m³</p>
+                        <p>臭氧 (O3): ${o3} µg/m³</p>
+                    `;
+                })
+                .catch(error => {
+                    console.error('查詢操作發生問題:', error);
+                    document.getElementById('weatherResult').innerHTML = `<p style="color:red;">${error.message}</p>`;
+                });
+        });
+    </script>
+</body>
+</html>
