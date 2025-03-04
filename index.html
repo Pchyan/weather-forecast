@@ -81,6 +81,8 @@
         <canvas id="forecastChart" style="margin-top: 20px; display: none;"></canvas>
     </div>
     <script>
+        const apiKey = process.env.API_KEY; // 獲取環境變數中的 API 密鑰
+
         // 初始化地圖
         const map = L.map('map').setView([23.5, 121], 6); // 設定地圖的初始中心和縮放級別
 
@@ -110,7 +112,6 @@
                 return;
             }
 
-            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
             const lat = selectedLat || ''; // 使用選擇的緯度
             const lon = selectedLon || ''; // 使用選擇的經度
             const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
@@ -164,7 +165,6 @@
 
         // 根據經緯度獲取天氣的函數
         function getWeatherAtLocation(lat, lon) {
-            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
             const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
 
             fetch(url)
@@ -205,7 +205,6 @@
                 return;
             }
 
-            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
             const lat = selectedLat || ''; // 使用選擇的緯度
             const lon = selectedLon || ''; // 使用選擇的經度
             const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
@@ -280,7 +279,6 @@
                 return;
             }
 
-            const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
             const lat = selectedLat || ''; // 使用選擇的緯度
             const lon = selectedLon || ''; // 使用選擇的經度
             const url = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=zh_tw`;
