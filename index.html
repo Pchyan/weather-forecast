@@ -6,24 +6,45 @@
     <title>天氣查詢</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f8ff;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to right, #74ebd5, #acb6e5); /* 漸變背景 */
             text-align: center;
+            margin: 0;
+            padding: 0;
         }
 
         .container {
+            display: flex; /* 使用 Flexbox */
+            flex-direction: column; /* 垂直排列 */
+            align-items: center; /* 水平置中 */
+            justify-content: center; /* 垂直置中 */
             margin: 50px auto;
             padding: 20px;
-            border: 1px solid #ccc;
             border-radius: 10px;
             width: 300px;
-            background-color: #fff;
+            background-color: rgba(255, 255, 255, 0.9); /* 半透明背景 */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* 陰影效果 */
         }
 
         input {
             padding: 10px;
-            width: 80%;
+            width: 100%;
             margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #4CAF50; /* 聚焦時的邊框顏色 */
+            outline: none; /* 去掉默認的聚焦輪廓 */
+        }
+
+        .button-container {
+            display: flex; /* 使用 Flexbox */
+            flex-wrap: wrap; /* 允許換行 */
+            justify-content: center; /* 中心對齊 */
+            margin-bottom: 20px; /* 按鈕區域底部邊距 */
         }
 
         button {
@@ -33,20 +54,26 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin: 5px; /* 添加邊距以分隔按鈕 */
+            transition: background-color 0.3s, transform 0.2s; /* 添加過渡效果 */
         }
 
         button:hover {
             background-color: #45a049;
+            transform: translateY(-2px); /* 鼠標懸停時的上移效果 */
         }
 
         #weatherResult {
             margin-top: 20px;
+            font-size: 1.2em; /* 增加字體大小 */
         }
 
         #map {
             height: 400px;
             width: 100%;
             margin-top: 20px;
+            border-radius: 10px; /* 圓角 */
+            overflow: hidden; /* 隱藏溢出 */
         }
 
         footer {
@@ -63,20 +90,33 @@
             text-decoration: underline;
         }
 
+        /* AQI 顏色樣式 */
         .aqi-good {
-            color: green;
+            color: white;
+            background-color: green;
+            padding: 10px;
+            border-radius: 5px;
         }
 
         .aqi-moderate {
-            color: yellow;
+            color: black;
+            background-color: yellow;
+            padding: 10px;
+            border-radius: 5px;
         }
 
         .aqi-unhealthy {
-            color: orange;
+            color: white;
+            background-color: orange;
+            padding: 10px;
+            border-radius: 5px;
         }
 
         .aqi-hazardous {
-            color: red;
+            color: white;
+            background-color: red;
+            padding: 10px;
+            border-radius: 5px;
         }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -87,14 +127,21 @@
     <div class="container">
         <h1>查詢天氣</h1>
         <input type="text" id="city" placeholder="輸入城市名稱">
-        <button id="getWeather">查詢天氣</button>
-        <button id="getCurrentLocation">獲取當前位置</button>
+        
+        <!-- 將所有按鈕放在一起 -->
+        <div class="button-container">
+            <button id="getWeather">查詢天氣</button>
+            <button id="getCurrentLocation">獲取當前位置</button>
+            <button id="getFutureForecast">未來5天</button>
+            <button id="getAirPollution">空氣污染資訊</button>
+        </div>
+
         <div id="weatherResult"></div>
-        <div id="map"></div>
-        <button id="getFutureForecast">未來5天</button>
-        <button id="getAirPollution">空氣污染資訊</button>
-        <div id="apiUrl" style="margin-top: 20px; color: blue;"></div>
+        
+        <!-- 將圖表放在地圖上方 -->
         <canvas id="forecastChart" style="margin-top: 20px; display: none;"></canvas>
+        <div id="map"></div>
+        <div id="apiUrl" style="margin-top: 20px; color: blue;"></div>
     </div>
     <script>
         const apiKey = '50cecd30d66ff108b4c50cc77c040bd1'; // 將此處替換為您的新 API 密鑰
@@ -110,6 +157,7 @@
 
         let selectedLat = null;
         let selectedLon = null;
+        let forecastChart = null; // 用於存儲圖表實例
 
         // 點擊地圖獲取天氣
         map.on('click', function(e) {
@@ -169,6 +217,8 @@
                 navigator.geolocation.getCurrentPosition(function(position) {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
+                    selectedLat = lat; // 設置選擇的緯度
+                    selectedLon = lon; // 設置選擇的經度
                     getWeatherAtLocation(lat, lon);
                     map.setView([lat, lon], 10); // 將地圖中心設置為當前位置
                 }, function() {
@@ -261,9 +311,15 @@
         // 繪製圖表的函數
         function drawChart(labels, temperatures) {
             const ctx = document.getElementById('forecastChart').getContext('2d');
+
+            // 如果已經存在圖表，則銷毀它
+            if (forecastChart) {
+                forecastChart.destroy();
+            }
+
             document.getElementById('forecastChart').style.display = 'block'; // 顯示圖表
 
-            new Chart(ctx, {
+            forecastChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
