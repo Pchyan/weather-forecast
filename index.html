@@ -62,6 +62,22 @@
         footer a:hover {
             text-decoration: underline;
         }
+
+        .aqi-good {
+            color: green;
+        }
+
+        .aqi-moderate {
+            color: yellow;
+        }
+
+        .aqi-unhealthy {
+            color: orange;
+        }
+
+        .aqi-hazardous {
+            color: red;
+        }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -300,8 +316,20 @@
                     const so2 = data.list[0].components.so2;
                     const o3 = data.list[0].components.o3;
 
+                    // 根據 AQI 值設置顏色
+                    let aqiClass = '';
+                    if (airQuality === 1) {
+                        aqiClass = 'aqi-good';
+                    } else if (airQuality === 2) {
+                        aqiClass = 'aqi-moderate';
+                    } else if (airQuality === 3) {
+                        aqiClass = 'aqi-unhealthy';
+                    } else {
+                        aqiClass = 'aqi-hazardous';
+                    }
+
                     document.getElementById('weatherResult').innerHTML = `
-                        <h2>空氣污染指數: ${airQualityDescription}</h2>
+                        <h2 class="${aqiClass}">空氣污染指數: ${airQualityDescription}</h2>
                         <p>PM2.5: ${pm25} µg/m³</p>
                         <p>PM10: ${pm10} µg/m³</p>
                         <p>一氧化碳 (CO): ${co} µg/m³</p>
